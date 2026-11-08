@@ -8,6 +8,7 @@ from app.services.game_service import GameService
 from app.repositories.visit_plan_repository import VisitPlanRepository
 from app.services.visit_plan_service import VisitPlanService
 from app.services.mission_card_service import MissionCardService
+from app.services.friend_invitation_service import FriendInvitationService
 
 
 
@@ -42,7 +43,7 @@ def get_visit_plan_service(
 def get_llm_client(request: Request) -> LlmClient:
     return request.app.state.llm_client
 
-# 직관 미션 카드
+# [LLM] 1. 직관 미션 카드
 # LLM 클라이언트와 두 저장소를 주입해 미션 카드 서비스를 만든다.
 def get_mission_card_service(llm_client:Annotated[LlmClient, Depends(get_llm_client)],
                             visit_plan_repo: Annotated[VisitPlanRepository, Depends(get_visit_plan_repository)],
@@ -50,8 +51,17 @@ def get_mission_card_service(llm_client:Annotated[LlmClient, Depends(get_llm_cli
                             ) -> MissionCardService:
     return MissionCardService(llm_client, visit_plan_repo, game_repo)
 
+# [LLM] 2. 친구 초대장 
+def get_friend_invitation_service(
+                            llm_client: Annotated[LlmClient, Depends(get_llm_client)],
+                            visit_plan_repo: Annotated[VisitPlanRepository, Depends(get_visit_plan_repository)],
+                            game_repo: Annotated[GameRepository, Depends(get_game_repository)]
+                            ) -> FriendInvitationService:
+    return FriendInvitationService(llm_client, visit_plan_repo, game_repo)
+    
 
 # 라우터에서 서비스 의존성을 간단히 선언하는 별칭이다.
 GameServiceDep = Annotated[GameService, Depends(get_game_service)]
 VisitPlanServiceDep = Annotated[VisitPlanService, Depends(get_visit_plan_service)]
 MissionCardServiceDep = Annotated[MissionCardService, Depends(get_mission_card_service)]
+FriendInvitationServiceDep = Annotated[FriendInvitationService, Depends(get_friend_invitation_service)]
