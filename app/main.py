@@ -1,3 +1,4 @@
+from app.routers import friend_invitation_router
 from app.routers import mission_card_router
 from app.clients.llm_client import OpenAiLlmClient
 from app.clients.llm_client import FakeLlmClient
@@ -36,3 +37,4 @@ register_exception_handlers(app)
 app.include_router(game_router.router)
 app.include_router(visit_plan_router.router)
 app.include_router(mission_card_router.router)
+app.include_router(friend_invitation_router.router)
