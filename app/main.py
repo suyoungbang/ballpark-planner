@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from app.core.exceptions import register_exception_handlers
 from app.routers import game_router, visit_plan_router
 from app.services.mission_card_service import build_mission_card_chain
-from app.services.friend_invitation_service import build_invitation_graph
+from app.graphs.friend_invitation_graph import build_invitation_graph
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
