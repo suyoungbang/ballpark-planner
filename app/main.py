@@ -1,13 +1,13 @@
 from app.routers import friend_invitation_router
 from app.routers import mission_card_router
-from app.clients.llm_client import OpenAiLlmClient
-from app.clients.llm_client import FakeLlmClient
+from app.clients.llm_client import OpenAiLlmClient, FakeLlmClient, create_chat_model
 from app.core.config import get_settings
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.exceptions import register_exception_handlers
 from app.routers import game_router, visit_plan_router
+from app.services.mission_card_service import build_mission_card_chain
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,6 +21,10 @@ async def lifespan(app: FastAPI):
         print(f"[lifespan] OpenAI 클라이언트를 사용한다. (model={settings.openai_model})")
         app.state.llm_client = OpenAiLlmClient(settings)
     
+    llm = create_chat_model(settings)
+    app.state.mission_card_chain = build_mission_card_chain(llm)
+    print("[lifespan] 미션 카드 체인을 만들었다.")  # 한 번만 만들어졌는지 확인
+
     # 서버가 요청 받음
     yield
 

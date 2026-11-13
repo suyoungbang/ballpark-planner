@@ -1,6 +1,7 @@
 import asyncio
 import time
 import openai
+from langchain_openai import ChatOpenAI
 
 from app.core.config import Settings
 from app.core.exceptions import AiRequestError
@@ -128,5 +129,15 @@ class FakeLlmClient:
     async def close(self) -> None:
         pass
 
+def create_chat_model(settings: Settings) -> ChatOpenAI:
+    """ 설정값으로 랭체인 채팅 모델 객체 만들어 반환 """
+    return ChatOpenAI(
+        model=settings.openai_model,
+        reasoning={"effort": settings.openai_reasoning_effort},
+        max_tokens=settings.openai_max_output_tokens,
+        timeout=settings.openai_timeout_seconds,
+        max_retries=1
+    )
+    
 # 타입 힌트
 LlmClient = OpenAiLlmClient | FakeLlmClient

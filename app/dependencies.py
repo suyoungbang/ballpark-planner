@@ -2,6 +2,7 @@ from app.clients.llm_client import LlmClient
 from typing import Annotated
 
 from fastapi import Depends, Request
+from langchain_core.runnables import Runnable
 
 from app.repositories.game_repository import GameRepository
 from app.services.game_service import GameService
@@ -44,12 +45,16 @@ def get_llm_client(request: Request) -> LlmClient:
     return request.app.state.llm_client
 
 # [LLM] 1. 직관 미션 카드
-# LLM 클라이언트와 두 저장소를 주입해 미션 카드 서비스를 만든다.
-def get_mission_card_service(llm_client:Annotated[LlmClient, Depends(get_llm_client)],
+# lifespan이 app.state에 넣어둔 미션 카드 체인을 현재 요청에서 꺼낸다.
+def get_mission_card_chain(request: Request) -> Runnable:
+    return request.app.state.mission_card_chain
+
+# 미션 카드 체인과 두 저장소를 주입해 미션 카드 서비스를 만든다.
+def get_mission_card_service(chain: Annotated[Runnable, Depends(get_mission_card_chain)],
                             visit_plan_repo: Annotated[VisitPlanRepository, Depends(get_visit_plan_repository)],
                             game_repo: Annotated[GameRepository, Depends(get_game_repository)],
                             ) -> MissionCardService:
-    return MissionCardService(llm_client, visit_plan_repo, game_repo)
+    return MissionCardService(chain, visit_plan_repo, game_repo)
 
 # [LLM] 2. 친구 초대장 
 def get_friend_invitation_service(

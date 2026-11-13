@@ -3,7 +3,14 @@ from app.core.exceptions import GameNotFoundError
 from app.schemas.mission_card import MissionCardResponse
 from app.repositories.game_repository import GameRepository
 from app.repositories.visit_plan_repository import VisitPlanRepository
-from app.clients.llm_client import LlmClient
+from app.clients.llm_client import LlmClient, to_ai_request_error
+from app.core.config import get_settings
+import openai
+
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import Runnable
+from langchain_openai import ChatOpenAI
 
 INSTRUCTIONS = (
     "너는 야구 직관 미션 제작자이다. 사용자는 야구 경기를 직접 관람하러 간다. "
@@ -16,11 +23,31 @@ INSTRUCTIONS = (
     "제공되지 않은 경기 관련 정보 또는 결과, 선수 정보는 지어내지 않는다."
 )
 
+MISSION_CARD_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", INSTRUCTIONS),
+        ("human",
+        "경기: {home_team} vs {away_team}\n"
+        "장소: {stadium}\n"
+        "시작: {starts_at}\n"
+        "좌석구역: {seat_section}\n"
+        "음식계획: {food_plan}\n"
+        "유니폼: {uniform}\n"
+        "메모: {memo}"
+        )
+    ]
+)
+
+# 모델과 체인은 요청마다 만들지 말고 lifespan에서 한 번만 만들도록 클래스 밖에 선언
+def build_mission_card_chain(llm: ChatOpenAI) -> Runnable:
+    return MISSION_CARD_PROMPT | llm | StrOutputParser()
+
+
 class MissionCardService:
-    def __init__(self, llm_client: LlmClient, 
+    def __init__(self, chain: Runnable, 
                 visit_plan_repo: VisitPlanRepository, 
                 game_repo: GameRepository):
-        self.llm_client = llm_client
+        self.chain = chain
         self.visit_plan_repo = visit_plan_repo
         self.game_repo = game_repo
     
@@ -36,20 +63,26 @@ class MissionCardService:
         if game is None:
             raise GameNotFoundError(visit_plan.game_id)
 
-        question = (
-             f"경기: {game.home_team} vs {game.away_team}\n"
-            f"장소: {game.stadium}\n"
-            f"시작: {game.starts_at:%Y-%m-%d %H:%M}\n"
-            f"좌석 구역: {visit_plan.seat_section}\n"
-            f"음식 계획: {visit_plan.food_plan or '미정'}\n"
-            f"유니폼: {visit_plan.uniform or '미정'}\n"
-            f"메모: {visit_plan.memo or '없음'}"
-        )
+        values = {
+            "home_team": game.home_team,
+            "away_team": game.away_team,
+            "stadium": game.stadium,
+            "starts_at": f"{game.starts_at:%Y-%m-%d %H:%M}",
+            "seat_section": visit_plan.seat_section,
+            "food_plan": visit_plan.food_plan or "미정",
+            "uniform": visit_plan.uniform or "미정",
+            "memo": visit_plan.memo  or "없음",
+        }
 
-        mission_card = await self.llm_client.ask_async(INSTRUCTIONS, question)
+        # 체인을 비동기로 호출한다. OpenAI 오류는 502 에러로 처리.
+        try:
+            mission_card = await self.chain.ainvoke(values)
+
+        except openai.OpenAIError as e:
+            raise to_ai_request_error(e) from e
 
         return MissionCardResponse(
             plan_id=plan_id,
             mission_card=mission_card,
-            model=self.llm_client.model
+            model=get_settings().openai_model
         )
