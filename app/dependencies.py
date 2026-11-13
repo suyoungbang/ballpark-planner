@@ -39,12 +39,12 @@ def get_visit_plan_service(
     return VisitPlanService(repository, game_repository)
 
 
-# lifespan이 app.state에 넣어둔 미션 카드와 초대장 체인을 현재 요청에서 꺼낸다.
+# lifespan이 app.state에 넣어둔 미션 카드와 초대장 그래프를 현재 요청에서 꺼낸다.
 def get_mission_card_chain(request: Request) -> Runnable:
     return request.app.state.mission_card_chain
 
-def get_friend_invitation_chain(request: Request) -> Runnable:
-    return request.app.state.invitation_chain
+def get_friend_invitation_graph(request: Request) -> Runnable:
+    return request.app.state.invitation_graph
 
 # [LLM] 1. 직관 미션 카드
 # 미션 카드 체인과 두 저장소를 주입해 미션 카드 서비스를 만든다.
@@ -57,11 +57,11 @@ def get_mission_card_service(
 
 # [LLM] 2. 친구 초대장 
 def get_friend_invitation_service(
-                            chain: Annotated[Runnable, Depends(get_friend_invitation_chain)],
+                            graph: Annotated[Runnable, Depends(get_friend_invitation_graph)],
                             visit_plan_repo: Annotated[VisitPlanRepository, Depends(get_visit_plan_repository)],
                             game_repo: Annotated[GameRepository, Depends(get_game_repository)]
                             ) -> FriendInvitationService:
-    return FriendInvitationService(chain, visit_plan_repo, game_repo)
+    return FriendInvitationService(graph, visit_plan_repo, game_repo)
     
 
 # 라우터에서 서비스 의존성을 간단히 선언하는 별칭이다.

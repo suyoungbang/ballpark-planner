@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from app.core.exceptions import register_exception_handlers
 from app.routers import game_router, visit_plan_router
 from app.services.mission_card_service import build_mission_card_chain
-from app.services.friend_invitation_service import build_invitation_chain
+from app.services.friend_invitation_service import build_invitation_graph
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,8 +18,8 @@ async def lifespan(app: FastAPI):
     app.state.mission_card_chain = build_mission_card_chain(llm)
     print("[lifespan] 미션 카드 체인을 만들었다.")  # 한 번만 만들어졌는지 확인
 
-    app.state.invitation_chain = build_invitation_chain(llm)
-    print("[lifespan] 초대장 체인을 만들었다.")
+    app.state.invitation_graph = build_invitation_graph(llm)
+    print("[lifespan] 초대장 그래프를 만들었다.")
 
     # 서버가 요청 받음
     yield
