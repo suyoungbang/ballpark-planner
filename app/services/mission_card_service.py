@@ -1,25 +1,23 @@
 from app.core.exceptions import PlanNotFoundError
 from app.core.exceptions import GameNotFoundError
-from app.schemas.mission_card import MissionCardResponse
+from app.schemas.mission_card import MissionCardResponse, MissionCard
 from app.repositories.game_repository import GameRepository
 from app.repositories.visit_plan_repository import VisitPlanRepository
 from app.clients.llm_client import to_ai_request_error
 from app.core.config import get_settings
 import openai
 
+from pydantic import ValidationError
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
+from app.core.exceptions import AiRequestError
 
 INSTRUCTIONS = (
     "너는 야구 직관 미션 제작자이다. 사용자는 야구 경기를 직접 관람하러 간다. "
     "제공된 경기와 직관 일정을 기반으로 "
-    "재미있고 실천 가능하고 중복되지 않는 미션 3개를 한 줄씩 작성한다. "
-    "단, 일정을 절셩하거나 일반적인 관람 팁을 주는 것이 아닌 현장에서 직접 수행할 행동을 제시한다. "
-    "각 미션에는 짧은 제목, 구체적인 행동, 성공 여부를 확인할 수 있는 조건을 넣는다. "
-    "각 미션 처음에 숫자를 부여하여 구분할 수 있게 하고, "
-    "'[제목] 행동 - 성공조건: ..' 형식을 따라 한 줄씩 작성한다. "
+    "재미있고 실천 가능하고 중복되지 않는 미션 3개를 작성한다. "
+    "단, 일정을 설명하거나 일반적인 관람 팁을 주는 것이 아닌 현장에서 직접 수행할 행동을 제시한다. "
     "제공되지 않은 경기 관련 정보 또는 결과, 선수 정보는 지어내지 않는다."
 )
 
@@ -40,7 +38,7 @@ MISSION_CARD_PROMPT = ChatPromptTemplate.from_messages(
 
 # 모델과 체인은 요청마다 만들지 말고 lifespan에서 한 번만 만들도록 클래스 밖에 선언
 def build_mission_card_chain(llm: ChatOpenAI) -> Runnable:
-    return MISSION_CARD_PROMPT | llm | StrOutputParser()
+    return MISSION_CARD_PROMPT | llm.with_structured_output(MissionCard)
 
 
 class MissionCardService:
@@ -77,9 +75,10 @@ class MissionCardService:
         # 체인을 비동기로 호출한다. OpenAI 오류는 502 에러로 처리.
         try:
             mission_card = await self.chain.ainvoke(values)
-
         except openai.OpenAIError as e:
             raise to_ai_request_error(e) from e
+        except ValidationError as e:
+            raise AiRequestError("AI 응답 형식이 올바르지 않습니다.") from e
 
         return MissionCardResponse(
             plan_id=plan_id,
