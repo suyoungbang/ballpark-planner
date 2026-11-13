@@ -1,4 +1,3 @@
-from app.clients.llm_client import LlmClient
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -38,11 +37,6 @@ def get_visit_plan_service(
     game_repository: Annotated[GameRepository, Depends(get_game_repository)],
 ) -> VisitPlanService:
     return VisitPlanService(repository, game_repository)
-
-
-# lifespan이 app.state에 저장한 LLM 클라이언트를 현재 요청에서 꺼낸다.
-def get_llm_client(request: Request) -> LlmClient:
-    return request.app.state.llm_client
 
 
 # lifespan이 app.state에 넣어둔 미션 카드와 초대장 체인을 현재 요청에서 꺼낸다.

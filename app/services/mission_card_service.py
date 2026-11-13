@@ -3,7 +3,7 @@ from app.core.exceptions import GameNotFoundError
 from app.schemas.mission_card import MissionCardResponse
 from app.repositories.game_repository import GameRepository
 from app.repositories.visit_plan_repository import VisitPlanRepository
-from app.clients.llm_client import LlmClient, to_ai_request_error
+from app.clients.llm_client import to_ai_request_error
 from app.core.config import get_settings
 import openai
 

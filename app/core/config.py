@@ -46,12 +46,6 @@ class Settings(BaseSettings):
     # OpenAI의 응답을 기다리는 최대 시간(초). 0보다 커야 한다.
     openai_timeout_seconds: float = Field(default=30.0, gt=0)
 
-    # 가짜 LLM : true면 키가 있어도 OpenAI를 호출하지 않는다. 비용 없이 시험하거나 성능을 잴 때 사용한다.
-    fake_llm: bool = False
-
-    # 가짜 LLM이 응답하기 전에 기다리는 시간(초). 실제 LLM의 응답 시간을 흉내 낸다. 0 이상이어야 한다.
-    fake_llm_delay_seconds: float = Field(default=3.0, ge=0)
-
     # 실험용 : def 핸들러를 실행할 스레드의 수. None이면 FastAPI의 기본값(40개)을 그대로 사용한다.
     # 1로 줄이면 def 핸들러가 한 번에 하나씩만 실행되는 것을 눈으로 확인할 수 있다(routers/ai_router.py의 실험 2).
     thread_pool_size: int | None = Field(default=None, ge=1)
