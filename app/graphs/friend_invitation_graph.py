@@ -1,5 +1,5 @@
 from typing import NotRequired, TypedDict
-
+from langgraph.checkpoint.memory import InMemorySaver
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -28,7 +28,11 @@ INVITATION_PROMPT = ChatPromptTemplate.from_messages([
     "좌석구역:{seat_section}\n"
     "음식 계획:{food_plan}\n"
     "검토 의견:{feedback}\n"
-    "위 정보를 바탕으로 친구에게 보낼 초대 메시지를 작성해 줘."
+    "이전 초안:{invitation}\n"
+    "수정 요청:{instruction}\n"
+    "수정 요청이 '없음'이면 위 정보로 새 초대 메시지를 작성해 줘. "
+    "수정 요청이 있으면 이전 초안을 그 요청대로 고쳐 써 줘. "
+    "어떤 경우에도 [날짜], [장소] 줄은 그대로 남겨 줘."
     )
 ])
 
@@ -46,6 +50,9 @@ class InvitationState(TypedDict):
     invitation: NotRequired[str]   # draft 노드가 쓴 초대장
     passed: NotRequired[bool]      # review 노드의 통과 여부
     feedback: NotRequired[str]     # review 노드가 준 수정 이유
+
+    # 사용자의 수정 요청
+    instruction: NotRequired[str]
 
     # 3. 반복 제어 필드
     attempts: int 
@@ -127,5 +134,5 @@ def build_invitation_graph(llm: ChatOpenAI):
     builder.add_conditional_edges("review", route_after_review, ["draft", END])
 
     # 4. 컴파일
-    return builder.compile()
+    return builder.compile(checkpointer=InMemorySaver())
 

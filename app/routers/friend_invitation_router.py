@@ -1,3 +1,4 @@
+from app.schemas.friend_invitation import InvitationRevisionRequest
 from fastapi import APIRouter, Depends
 from typing import Annotated
 from fastapi.sse import EventSourceResponse
@@ -32,10 +33,22 @@ def get_invitation_values(plan_id: int,
              response_class=EventSourceResponse,
              summary="직관 친구 초대장 스트리밍")
 async def stream_invitation(
+    plan_id: int,
     values: Annotated[dict, Depends(get_invitation_values)],
     service: FriendInvitationServiceDep,
 ):
     print(f"[invitation stream] thread={threading.current_thread().name}")
 
-    async for event in service.stream_invitation(values):
+    async for event in service.stream_invitation(plan_id, values):
         yield event
+
+
+# 직전 초대장을 수정 요청 한 줄로 고치는 엔드포인트
+@router.post("/{plan_id}/invitation/revise", summary="직관 친구 초대장 수정")  
+async def revise_invitation(
+    plan_id: int,
+    request: InvitationRevisionRequest,                                
+    service: FriendInvitationServiceDep,
+) -> FriendInvitationResponse:
+    print(f"[invitation revise] thread={threading.current_thread().name}")
+    return await service.revise_invitation(plan_id, request)  
