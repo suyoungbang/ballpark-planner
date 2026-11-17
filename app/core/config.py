@@ -25,12 +25,11 @@ class Settings(BaseSettings):
     )
 
     # openAI API key 값: pydantic에서 제공해주는 SecretStr 타입을 사용한다.
-    # (시스템 환경변수로부터 읽어와야 한다.)
+    # 실제 호출에서는 ChatOpenAI가 환경 변수 OPENAI_API_KEY를 직접 읽는다.
+    # 이 필드는 키가 들어왔는지 설정 확인용으로만 남겨 둔다. (키가 없으면 None)
     # 이는 비밀번호, API 키, 토큰 등 민감한 문자열 데이터를 안전하게 처리하기 위해 사용하는 데이터 타입이다.
     # print()를 하거나 로그를 남길 때 '**********'로 마스킹되어 찍힌다.
     # 따라서 코드 내에서 실제 값은 get_secret_value()를 호출해 사용해야 한다.
-    # 기본값을 None으로 설정해서 OpenAI API 키가 없거나 인식되지 않더라도 서버는 실행된다.
-    # 그때는 가짜 LLM 클라이언트를 사용한다.
     openai_api_key: SecretStr | None = None
 
     # 사용할 모델
@@ -45,10 +44,6 @@ class Settings(BaseSettings):
 
     # OpenAI의 응답을 기다리는 최대 시간(초). 0보다 커야 한다.
     openai_timeout_seconds: float = Field(default=30.0, gt=0)
-
-    # 실험용 : def 핸들러를 실행할 스레드의 수. None이면 FastAPI의 기본값(40개)을 그대로 사용한다.
-    # 1로 줄이면 def 핸들러가 한 번에 하나씩만 실행되는 것을 눈으로 확인할 수 있다(routers/ai_router.py의 실험 2).
-    thread_pool_size: int | None = Field(default=None, ge=1)
 
 # 3. 설정 객체 반환 함수 정의 (feat. @lru_cache)
 
