@@ -3,6 +3,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langgraph.graph import START, END, StateGraph
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 
 from app.schemas.mission_card import MissionCard
 
@@ -15,6 +17,8 @@ class MissionCardState(TypedDict):
     food_plan: str
     uniform: str
     memo: str
+    # retrieve 노드가 찾은 구장 가이드
+    documents: NotRequired[list[Document]]  
 
     mission_card: NotRequired[MissionCard]
     passed: NotRequired[bool]
@@ -30,7 +34,9 @@ INSTRUCTIONS = (
     "제공된 경기와 직관 일정을 기반으로 "
     "재미있고 실천 가능하고 중복되지 않는 미션 3개를 작성한다. "
     "단, 일정을 설명하거나 일반적인 관람 팁을 주는 것이 아닌 현장에서 직접 수행할 행동을 제시한다. "
-    "제공되지 않은 경기 관련 정보 또는 결과, 선수 정보는 지어내지 않는다."
+    "제공되지 않은 경기 관련 정보 또는 결과, 선수 정보는 지어내지 않는다. "
+    "[구장 가이드]에 나온 먹거리, 포토존, 좌석 정보를 활용해 그 구장에서만 할 수 있는 미션을 만든다. "
+    "가이드에 없는 매장이나 장소는 지어내지 않는다. "
 )
 
 MISSION_CARD_PROMPT = ChatPromptTemplate.from_messages(
@@ -43,7 +49,8 @@ MISSION_CARD_PROMPT = ChatPromptTemplate.from_messages(
         "좌석구역: {seat_section}\n"
         "음식계획: {food_plan}\n"
         "유니폼: {uniform}\n"
-        "메모: {memo}\n"           
+        "메모: {memo}\n"  
+        "[구장 가이드]\n{guides}\n"         
         "검토 의견: {feedback}"      
         )
     ]
@@ -79,14 +86,24 @@ REVIEW_PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
-def build_mission_card_graph(llm: ChatOpenAI):
+def build_mission_card_graph(llm: ChatOpenAI, retriever: BaseRetriever):
     draft_chain = MISSION_CARD_PROMPT | llm.with_structured_output(MissionCard)
     review_chain = REVIEW_PROMPT | llm.with_structured_output(ReviewResult)
+
+    # [노드] 구장 가이드를 검색해 저장한다. (처음 한 번만)
+    async def retrieve(state: MissionCardState) -> dict:
+        query = f"{state['stadium']} {state['food_plan']} {state['seat_section']}"
+        documents = await retriever.ainvoke(query)
+
+        print(f"[mission retrieve] '{query}' →", [d.metadata["guide_no"] for d in documents])
+
+        return {"documents": documents}
 
     # [노드] 미션 카드 초안을 만들고 시도 횟수를 1 늘린다.
     async def draft(state: MissionCardState) -> dict:
         values = dict(state)
         values["feedback"] = state.get("feedback", "없음")
+        values["guides"] = "\n\n".join( d.page_content for d in state["documents"])
         mission_card = await draft_chain.ainvoke(values)
  
         return {"mission_card": mission_card, "attempts": state["attempts"] + 1}
@@ -118,11 +135,13 @@ def build_mission_card_graph(llm: ChatOpenAI):
     builder = StateGraph(MissionCardState)                  
 
     # 1. 노드 등록
+    builder.add_node("retrieve", retrieve)
     builder.add_node("draft", draft)
     builder.add_node("review", review)
 
     # 2. 고정 엣지
-    builder.add_edge(START, "draft")
+    builder.add_edge(START, "retrieve")
+    builder.add_edge("retrieve","draft")
     builder.add_edge("draft", "review")
 
     # 3. 조건부 엣지
