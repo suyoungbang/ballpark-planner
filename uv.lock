@@ -196,6 +196,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "openai" },
     { name = "pydantic-settings" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -207,6 +208,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.2.21" },
     { name = "openai", specifier = ">=3.45.0" },
     { name = "pydantic-settings", specifier = ">=2.16.2" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
 ]
 
 [[package]]

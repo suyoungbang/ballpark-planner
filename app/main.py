@@ -4,11 +4,14 @@ from app.clients.llm_client import create_chat_model
 from app.core.config import get_settings
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from dotenv import load_dotenv
 
 from app.core.exceptions import register_exception_handlers
 from app.routers import game_router, visit_plan_router
 from app.graphs.friend_invitation_graph import build_invitation_graph
 from app.graphs.mission_card_graph import build_mission_card_graph
+
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

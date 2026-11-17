@@ -12,6 +12,7 @@ dependencies = [
     "langgraph>=1.2.21",
     "openai>=3.45.0",
     "pydantic-settings>=2.16.2",
+    "python-dotenv>=1.2.4",
 ]
 
 [tool.fastapi]
