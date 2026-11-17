@@ -13,3 +13,4 @@ wheels/
 .env
 
 /miniproject-notice.md
+chroma_db/
