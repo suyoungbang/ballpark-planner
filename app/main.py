@@ -1,30 +1,34 @@
 from app.routers import friend_invitation_router
 from app.routers import mission_card_router
-from app.clients.llm_client import OpenAiLlmClient
-from app.clients.llm_client import FakeLlmClient
+from app.clients.llm_client import create_chat_model
 from app.core.config import get_settings
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from dotenv import load_dotenv
 
 from app.core.exceptions import register_exception_handlers
 from app.routers import game_router, visit_plan_router
+from app.graphs.friend_invitation_graph import build_invitation_graph
+from app.graphs.mission_card_graph import build_mission_card_graph
+from app.rag.stadium_guide import get_vectorstore  
+
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    llm = create_chat_model(settings)
 
-    if settings.fake_llm or settings.openai_api_key is None:
-        print(f"[lifespan] 가짜 LLM 클라이언트를 사용한다. (FAKE_LLM={settings.fake_llm}, "
-              f"키 있음={settings.openai_api_key is not None}, 응답까지 {settings.fake_llm_delay_seconds}초)")
-        app.state.llm_client = FakeLlmClient(settings)
-    else:
-        print(f"[lifespan] OpenAI 클라이언트를 사용한다. (model={settings.openai_model})")
-        app.state.llm_client = OpenAiLlmClient(settings)
-    
+    app.state.invitation_graph = build_invitation_graph(llm)
+    print("[lifespan] 초대장 그래프를 만들었다.")
+
+    retriever = get_vectorstore().as_retriever(search_kwargs={"k": 3})
+    app.state.mission_card_graph = build_mission_card_graph(llm, retriever) 
+    print("[lifespan] 미션 카드 그래프를 만들었다.")
+
     # 서버가 요청 받음
     yield
 
-    await app.state.llm_client.close()
 
 
 app = FastAPI(

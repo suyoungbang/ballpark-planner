@@ -19,6 +19,11 @@ class PlanNotFoundError(Exception):
         super().__init__(f"해당 일정이 존재하지 않습니다. planId={plan_id}")
         self.plan_id = plan_id
 
+class InvitationNotFoundError(Exception):
+
+    def __init__(self, plan_id: int):
+        super().__init__(f"해당 일정엔 초대장이 존재하지 않습니다. planId={plan_id}")   # 
+        self.plan_id = plan_id
 
 # OpenAI 호출이 실패했을 때 LLM 클라이언트가 던지는 예외 (Spring 프로젝트의 AiRequestException)
 # 키가 잘못되었거나, 요청 한도를 넘었거나, 응답이 제한 시간 안에 오지 않았을 때 발생한다.
@@ -64,6 +69,16 @@ def register_exception_handlers(app: FastAPI) -> None:
             },
         )
 
+    @app.exception_handler(InvitationNotFoundError)
+    def handle_invitation_not_found(request: Request, e: InvitationNotFoundError):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "ERROR_CODE_00003",
+                "description": "조회 실패",
+                "detail": str(e),
+            },
+        )
 
     # OpenAI 호출이 실패하면 502 Bad Gateway로 응답한다.
     # 502는 "우리 서버가 호출한 다른쪽 서버가 실패했다"는 뜻이다.
